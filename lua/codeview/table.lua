@@ -28,6 +28,24 @@ function M.open_table(ref1, ref2)
 		end
 	end
 
+	-- Include untracked files if appropriate
+	if common.should_include_untracked(ref1, ref2) then
+		local untracked_files = common.get_untracked_files()
+		for _, filepath in ipairs(untracked_files) do
+			-- Count lines in untracked file
+			local file_content = vim.fn.readfile(filepath)
+			local line_count = (vim.v.shell_error == 0) and #file_content or 0
+
+			table.insert(files, {
+				filepath = filepath,
+				additions = line_count,
+				deletions = 0,
+				total = line_count,
+			})
+			total_files = total_files + 1
+		end
+	end
+
 	if #files == 0 then
 		vim.notify("No changes found", vim.log.levels.INFO)
 		return
@@ -177,17 +195,6 @@ end
 function M.refresh_table_buffer(buf)
 	buf = buf or vim.api.nvim_get_current_buf()
 
-	local ok, cmd = pcall(vim.api.nvim_buf_get_var, buf, "codeview_cmd")
-	if not ok then
-		return false
-	end
-
-	local output = vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
-		vim.notify("Git diff refresh failed: " .. output, vim.log.levels.ERROR)
-		return false
-	end
-
 	-- Save cursor position
 	local cursor_pos = vim.fn.getcurpos()
 
@@ -202,7 +209,7 @@ function M.refresh_table_buffer(buf)
 		ref2 = nil
 	end
 
-	-- Re-generate the table content
+	-- Re-generate the table content (this will include untracked files automatically)
 	M.open_table(ref1, ref2)
 
 	-- Restore cursor position

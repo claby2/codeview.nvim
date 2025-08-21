@@ -9,6 +9,17 @@ function M.open_diff(ref1, ref2)
 		return
 	end
 
+	-- Include untracked files if appropriate
+	if common.should_include_untracked(ref1, ref2) then
+		local untracked_files = common.get_untracked_files()
+		if #untracked_files > 0 then
+			local untracked_diff = common.generate_untracked_diff(untracked_files)
+			if untracked_diff ~= "" then
+				output = output .. "\n" .. untracked_diff
+			end
+		end
+	end
+
 	local buf = common.get_or_create_buffer(title)
 
 	-- Set buffer options
@@ -27,6 +38,8 @@ function M.open_diff(ref1, ref2)
 	vim.api.nvim_buf_set_var(buf, "codeview_cmd", cmd)
 	vim.api.nvim_buf_set_var(buf, "codeview_title", title)
 	vim.api.nvim_buf_set_var(buf, "codeview_is_diff", true)
+	vim.api.nvim_buf_set_var(buf, "codeview_ref1", ref1)
+	vim.api.nvim_buf_set_var(buf, "codeview_ref2", ref2)
 
 	-- Set keymap (safe to call multiple times)
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
@@ -130,29 +143,22 @@ end
 function M.refresh_diff_buffer(buf)
 	buf = buf or vim.api.nvim_get_current_buf()
 
-	local ok, cmd = pcall(vim.api.nvim_buf_get_var, buf, "codeview_cmd")
-	if not ok then
-		return false
-	end
-
-	local output = vim.fn.system(cmd)
-	if vim.v.shell_error ~= 0 then
-		vim.notify("Git diff refresh failed: " .. output, vim.log.levels.ERROR)
-		return false
-	end
-
 	-- Save cursor position
 	local cursor_pos = vim.fn.getcurpos()
 
-	-- Temporarily disable readonly to update content
-	vim.api.nvim_buf_set_option(buf, "readonly", false)
+	-- Get refs for re-calling open_table
+	local ok1, ref1 = pcall(vim.api.nvim_buf_get_var, buf, "codeview_ref1")
+	local ok2, ref2 = pcall(vim.api.nvim_buf_get_var, buf, "codeview_ref2")
 
-	local lines = vim.split(output, "\n")
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	if not ok1 then
+		ref1 = nil
+	end
+	if not ok2 then
+		ref2 = nil
+	end
 
-	-- Restore settings
-	vim.api.nvim_buf_set_option(buf, "modified", false)
-	vim.api.nvim_buf_set_option(buf, "readonly", true)
+	-- Re-generate the diff content (this will include untracked files automatically)
+	M.open_diff(ref1, ref2)
 
 	-- Restore cursor position
 	vim.fn.setpos(".", cursor_pos)
