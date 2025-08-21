@@ -184,11 +184,9 @@ function M.goto_diff_from_table()
 
 	-- Find the line with the file header
 	for i, diff_line in ipairs(diff_lines) do
-		if
-			diff_line:match("^%+%+%+ b/" .. vim.pesc(filepath) .. "$")
-			or diff_line:match("^%+%+%+ b/" .. vim.pesc(filepath) .. "%s")
-		then
+		if diff_line:match("^[%+%-][%+%-][%+%-] [ab]/" .. vim.pesc(filepath) .. "$") then
 			vim.fn.cursor(i, 1)
+			vim.cmd("normal! zz")
 			break
 		end
 	end
