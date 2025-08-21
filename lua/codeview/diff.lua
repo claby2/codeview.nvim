@@ -38,10 +38,12 @@ function M.open_diff(ref1, ref2)
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "hide")
 	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "filetype", "diff")
-	vim.api.nvim_buf_set_option(buf, "modified", false)
 
 	local lines = vim.split(output, "\n")
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+	vim.api.nvim_buf_set_option(buf, "modified", false)
+	vim.api.nvim_buf_set_option(buf, "readonly", true)
 
 	vim.api.nvim_buf_set_name(buf, title)
 
@@ -76,29 +78,29 @@ function M.goto_file_from_diff()
 	end
 
 	local hunk_line = nil
+	local hunk_position = nil
 	for i = current_line, 1, -1 do
 		local line = lines[i]
 		local new_line_match = line:match("^@@ %-%d+,%d+ %+(%d+),%d+ @@")
 		if new_line_match then
 			hunk_line = tonumber(new_line_match)
+			hunk_position = i
 			break
 		end
 	end
 
-	if hunk_line then
-		local offset = 0
-		for i = current_line, 1, -1 do
+	if hunk_line and hunk_position then
+		local new_file_line_count = 0
+		for i = hunk_position + 1, current_line do
 			local line = lines[i]
-			if line:match("^@@ ") then
-				break
-			elseif line:match("^%+") then
-				offset = offset + 1
-			elseif line:match("^%-") then
-				offset = offset - 1
+			if line:match("^%+") or line:match("^ ") then
+				new_file_line_count = new_file_line_count + 1
 			end
 		end
-		line_number = hunk_line + offset - 1
+		line_number = hunk_line + new_file_line_count - 1
 	end
+
+	local diff_buf = vim.api.nvim_get_current_buf()
 
 	vim.cmd("normal! m'")
 	vim.cmd("edit " .. file_path)
@@ -106,7 +108,8 @@ function M.goto_file_from_diff()
 	if line_number and line_number > 0 then
 		vim.fn.cursor(line_number, 1)
 	end
+
+	vim.api.nvim_buf_set_option(diff_buf, "modified", false)
 end
 
 return M
-
