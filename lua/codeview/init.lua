@@ -5,7 +5,7 @@ M.config = {}
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 
-	vim.api.nvim_create_user_command("ReviewDiff", function(args)
+	vim.api.nvim_create_user_command("CodeViewDiff", function(args)
 		local diff = require("codeview.diff")
 		local refs = vim.split(args.args, "%s+")
 
@@ -16,7 +16,7 @@ function M.setup(opts)
 		elseif #refs == 2 then
 			diff.open_diff(refs[1], refs[2])
 		else
-			vim.notify("Usage: :ReviewDiff [ref1] [ref2]", vim.log.levels.ERROR)
+			vim.notify("Usage: :CodeViewDiff [ref1] [ref2]", vim.log.levels.ERROR)
 		end
 	end, {
 		nargs = "*",
