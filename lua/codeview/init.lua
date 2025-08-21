@@ -1,14 +1,9 @@
 local M = {}
 
-M.config = {
-	highlight_group = "Comment",
-	review_pattern = "REVIEW:",
-}
+M.config = {}
 
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
-
-	require("codeview.highlights").setup()
 
 	vim.api.nvim_create_user_command("ReviewDiff", function(args)
 		local diff = require("codeview.diff")
@@ -29,14 +24,6 @@ function M.setup(opts)
 			return { "main", "HEAD", "origin/main", "--staged" }
 		end,
 	})
-
-	vim.api.nvim_create_user_command("ReviewList", function()
-		require("codeview.comments").list_comments()
-	end, {})
-
-	local comments = require("codeview.comments")
-	vim.keymap.set("n", "]r", comments.next_comment, { desc = "Next review comment" })
-	vim.keymap.set("n", "[r", comments.prev_comment, { desc = "Previous review comment" })
 
 	-- Auto-refresh diff buffers when returning to them
 	vim.api.nvim_create_autocmd("BufEnter", {

@@ -20,17 +20,7 @@
 
             # Lua development and formatting tools
             stylua
-            luacheck
             lua-language-server
-
-            # Additional useful tools for plugin development
-            tree-sitter
-            ripgrep
-            fd
-
-            # Shell utilities that might be useful
-            gnused
-            gnugrep
           ];
 
           shellHook = ''
@@ -41,13 +31,11 @@
             echo "  - git: $(git --version)"
             echo "  - lua: $(lua -v)"
             echo "  - stylua: Lua formatter"
-            echo "  - luacheck: Lua linter"
             echo "  - lua-language-server: LSP for Lua"
             echo ""
             echo "Quick commands:"
             echo "  stylua . --check      # Check Lua formatting"
             echo "  stylua .              # Format Lua files"
-            echo "  luacheck lua/         # Lint Lua files"
             echo ""
           '';
 
