@@ -1,36 +1,11 @@
 local M = {}
+local common = require("codeview.common")
 
 function M.open_table(ref1, ref2)
-	local cmd, title
-	local diff_args = ""
+	local cmd, title = common.generate_git_command_and_title(ref1, ref2, "table")
 
-	if ref2 == nil then
-		if ref1 == "--staged" then
-			diff_args = "--staged"
-			title = "table: staged changes"
-		elseif ref1 == nil then
-			diff_args = ""
-			title = "table: unstaged changes"
-		else
-			diff_args = ref1
-			title = string.format("table: working tree vs %s", ref1)
-		end
-	else
-		diff_args = string.format("%s..%s", ref1, ref2)
-		title = string.format("table: %s..%s", ref1, ref2)
-	end
-
-	cmd = string.format("git diff --numstat %s", diff_args):gsub("%s+$", "")
-
-	local output = vim.fn.system(cmd)
-
-	if vim.v.shell_error ~= 0 then
-		vim.notify("Git diff failed: " .. output, vim.log.levels.ERROR)
-		return
-	end
-
-	if output == "" or output:match("^%s*$") then
-		vim.notify("No changes found", vim.log.levels.INFO)
+	local output = common.execute_git_command(cmd)
+	if not output then
 		return
 	end
 
@@ -58,41 +33,14 @@ function M.open_table(ref1, ref2)
 		return
 	end
 
-	-- Sort files by total changes (descending)
-	table.sort(files, function(a, b)
-		return a.total > b.total
-	end)
+	-- Preserve git's original file ordering (no sorting)
 
-	-- Check for existing buffer with the same name
-	local existing_buf = nil
-	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-		if vim.api.nvim_buf_is_valid(buf) then
-			local buf_name = vim.api.nvim_buf_get_name(buf)
-			if buf_name:match(vim.pesc(title) .. "$") then
-				existing_buf = buf
-				break
-			end
-		end
-	end
-
-	local buf
-	if existing_buf then
-		-- Reuse existing buffer
-		buf = existing_buf
-		vim.api.nvim_set_current_buf(buf)
-	else
-		-- Create new buffer
-		vim.cmd("enew")
-		buf = vim.api.nvim_get_current_buf()
-		vim.api.nvim_buf_set_name(buf, title)
-	end
+	local buf = common.get_or_create_buffer(title)
 
 	-- Set buffer options
+	common.set_common_buffer_options(buf)
 	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "hide")
-	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "filetype", "codeview-table")
-	vim.api.nvim_buf_set_option(buf, "readonly", false)
 
 	-- Build table content
 	local lines = {}
@@ -113,6 +61,9 @@ function M.open_table(ref1, ref2)
 	end
 	table.insert(lines, comparison_info)
 	table.insert(lines, "")
+
+	-- Track the number of header lines for navigation
+	local header_line_count = #lines
 
 	-- Find maximum width for alignment
 	local max_add_width = 2
@@ -149,6 +100,7 @@ function M.open_table(ref1, ref2)
 	vim.api.nvim_buf_set_var(buf, "codeview_is_table", true)
 	vim.api.nvim_buf_set_var(buf, "codeview_ref1", ref1)
 	vim.api.nvim_buf_set_var(buf, "codeview_ref2", ref2)
+	vim.api.nvim_buf_set_var(buf, "codeview_header_lines", header_line_count)
 
 	-- Set keymap for navigation
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
@@ -164,8 +116,14 @@ function M.goto_diff_from_table()
 	local current_line = vim.fn.line(".")
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
-	-- Skip header lines (first 3 lines)
-	if current_line <= 3 then
+	-- Get the number of header lines from buffer variable
+	local ok, header_line_count = pcall(vim.api.nvim_buf_get_var, 0, "codeview_header_lines")
+	if not ok then
+		header_line_count = 3 -- fallback to default
+	end
+
+	-- Skip header lines
+	if current_line <= header_line_count then
 		return
 	end
 
@@ -254,4 +212,3 @@ function M.refresh_table_buffer(buf)
 end
 
 return M
-

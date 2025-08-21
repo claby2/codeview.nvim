@@ -1,66 +1,20 @@
 local M = {}
+local common = require("codeview.common")
 
 function M.open_diff(ref1, ref2)
-	local cmd, title
+	local cmd, title = common.generate_git_command_and_title(ref1, ref2, "diff")
 
-	if ref2 == nil then
-		if ref1 == "--staged" then
-			cmd = "git diff --staged"
-			title = "diff: staged changes"
-		elseif ref1 == nil then
-			cmd = "git diff"
-			title = "diff: unstaged changes"
-		else
-			cmd = string.format("git diff %s", ref1)
-			title = string.format("diff: working tree vs %s", ref1)
-		end
-	else
-		cmd = string.format("git diff %s..%s", ref1, ref2)
-		title = string.format("diff: %s..%s", ref1, ref2)
-	end
-
-	local output = vim.fn.system(cmd)
-
-	if vim.v.shell_error ~= 0 then
-		vim.notify("Git diff failed: " .. output, vim.log.levels.ERROR)
+	local output = common.execute_git_command(cmd)
+	if not output then
 		return
 	end
 
-	if output == "" then
-		vim.notify("No changes found", vim.log.levels.INFO)
-		return
-	end
-
-	-- Check for existing buffer with the same name
-	local existing_buf = nil
-	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-		if vim.api.nvim_buf_is_valid(buf) then
-			local buf_name = vim.api.nvim_buf_get_name(buf)
-			if buf_name:match(vim.pesc(title) .. "$") then
-				existing_buf = buf
-				break
-			end
-		end
-	end
-
-	local buf
-	if existing_buf then
-		-- Reuse existing buffer
-		buf = existing_buf
-		vim.api.nvim_set_current_buf(buf)
-	else
-		-- Create new buffer
-		vim.cmd("enew")
-		buf = vim.api.nvim_get_current_buf()
-		vim.api.nvim_buf_set_name(buf, title)
-	end
+	local buf = common.get_or_create_buffer(title)
 
 	-- Set buffer options
+	common.set_common_buffer_options(buf)
 	vim.api.nvim_buf_set_option(buf, "buftype", "")
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "hide")
-	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "filetype", "diff")
-	vim.api.nvim_buf_set_option(buf, "readonly", false)
 
 	-- Update buffer content
 	local lines = vim.split(output, "\n")
@@ -125,6 +79,18 @@ function M.goto_file_from_diff()
 		vim.notify("Cannot open deleted file: " .. file_path, vim.log.levels.ERROR)
 		return
 	end
+
+	-- Calculate the exact line number in the target file
+	-- This involves parsing diff hunks and counting lines relative to the cursor position
+	--
+	-- Process:
+	-- 1. Search backwards from cursor to find the relevant hunk header (@@ -old_start,old_count +new_start,new_count @@)
+	-- 2. Extract the starting line number in the new file (new_start)
+	-- 3. Count lines from the hunk header to the cursor position that exist in the new file:
+	--    - Lines starting with '+' (additions) count toward new file
+	--    - Lines starting with ' ' (context) count toward new file
+	--    - Lines starting with '-' (deletions) do NOT count toward new file
+	-- 4. Final line number = new_start + counted_lines - 1
 
 	local hunk_line = nil
 	local hunk_position = nil
