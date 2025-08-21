@@ -12,19 +12,21 @@ function M.open_table(ref1, ref2)
 	-- Parse numstat output
 	local files = {}
 	local total_files = 0
-	for line in output:gmatch("[^\n]+") do
-		local additions, deletions, filepath = line:match("^(%S+)%s+(%S+)%s+(.+)$")
-		if additions and deletions and filepath then
-			-- Handle binary files (shown as - in git diff --numstat)
-			local add_count = (additions == "-") and 0 or tonumber(additions)
-			local del_count = (deletions == "-") and 0 or tonumber(deletions)
-			table.insert(files, {
-				filepath = filepath,
-				additions = add_count,
-				deletions = del_count,
-				total = add_count + del_count,
-			})
-			total_files = total_files + 1
+	if output ~= "" then
+		for line in output:gmatch("[^\n]+") do
+			local additions, deletions, filepath = line:match("^(%S+)%s+(%S+)%s+(.+)$")
+			if additions and deletions and filepath then
+				-- Handle binary files (shown as - in git diff --numstat)
+				local add_count = (additions == "-") and 0 or tonumber(additions)
+				local del_count = (deletions == "-") and 0 or tonumber(deletions)
+				table.insert(files, {
+					filepath = filepath,
+					additions = add_count,
+					deletions = del_count,
+					total = add_count + del_count,
+				})
+				total_files = total_files + 1
+			end
 		end
 	end
 

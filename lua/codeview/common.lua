@@ -40,8 +40,7 @@ function M.execute_git_command(cmd)
 	end
 
 	if output == "" or (output:match("^%s*$")) then
-		vim.notify("No changes found", vim.log.levels.INFO)
-		return nil
+		return ""
 	end
 
 	return output

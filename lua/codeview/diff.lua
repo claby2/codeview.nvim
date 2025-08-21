@@ -15,9 +15,19 @@ function M.open_diff(ref1, ref2)
 		if #untracked_files > 0 then
 			local untracked_diff = common.generate_untracked_diff(untracked_files)
 			if untracked_diff ~= "" then
-				output = output .. "\n" .. untracked_diff
+				if output == "" then
+					output = untracked_diff
+				else
+					output = output .. "\n" .. untracked_diff
+				end
 			end
 		end
+	end
+
+	-- Check if we still have no content after including untracked files
+	if output == "" then
+		vim.notify("No changes found", vim.log.levels.INFO)
+		return
 	end
 
 	local buf = common.get_or_create_buffer(title)
