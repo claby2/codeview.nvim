@@ -67,7 +67,9 @@ function M.goto_file_from_diff()
 
 	local file_path = nil
 	local line_number = nil
+	local is_deleted_file = false
 
+	-- Look for file path in diff headers
 	for i = current_line, 1, -1 do
 		local line = lines[i]
 		local file_match = line:match("^%+%+%+ b/(.+)")
@@ -75,10 +77,29 @@ function M.goto_file_from_diff()
 			file_path = file_match
 			break
 		end
+		-- Check for deleted file (--- a/file +++ /dev/null)
+		if line:match("^%+%+%+ /dev/null") then
+			-- Look for the corresponding --- a/file line
+			for j = i, 1, -1 do
+				local prev_line = lines[j]
+				local deleted_match = prev_line:match("^%-%-%- a/(.+)")
+				if deleted_match then
+					file_path = deleted_match
+					is_deleted_file = true
+					break
+				end
+			end
+			break
+		end
 	end
 
 	if not file_path then
 		vim.notify("Could not determine file", vim.log.levels.WARN)
+		return
+	end
+
+	if is_deleted_file then
+		vim.notify("Cannot open deleted file: " .. file_path, vim.log.levels.ERROR)
 		return
 	end
 
