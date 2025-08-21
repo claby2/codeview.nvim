@@ -18,7 +18,7 @@ function M.open_diff(ref1, ref2)
 				if output == "" then
 					output = untracked_diff
 				else
-					output = output .. "\n" .. untracked_diff
+					output = output .. untracked_diff
 				end
 			end
 		end
@@ -61,81 +61,71 @@ function M.open_diff(ref1, ref2)
 	})
 end
 
-function M.goto_file_from_diff()
-	local current_line = vim.fn.line(".")
-	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-
+local function identify_file_path(lines, current_line)
 	local file_path = nil
-	local line_number = nil
-	local is_deleted_file = false
-
-	-- Look for file path in diff headers
 	for i = current_line, 1, -1 do
 		local line = lines[i]
-		local file_match = line:match("^%+%+%+ b/(.+)")
-		if file_match then
-			file_path = file_match
-			break
-		end
-		-- Check for deleted file (--- a/file +++ /dev/null)
 		if line:match("^%+%+%+ /dev/null") then
-			-- Look for the corresponding --- a/file line
-			for j = i, 1, -1 do
-				local prev_line = lines[j]
-				local deleted_match = prev_line:match("^%-%-%- a/(.+)")
-				if deleted_match then
-					file_path = deleted_match
-					is_deleted_file = true
-					break
-				end
-			end
+			error("Deleted file")
+		end
+		file_path = line:match("^%+%+%+ b/(.+)")
+		if file_path then
 			break
 		end
 	end
+	return file_path
+end
 
-	if not file_path then
-		vim.notify("Could not determine file", vim.log.levels.WARN)
-		return
-	end
-
-	if is_deleted_file then
-		vim.notify("Cannot open deleted file: " .. file_path, vim.log.levels.ERROR)
-		return
-	end
-
-	-- Calculate the exact line number in the target file
-	-- This involves parsing diff hunks and counting lines relative to the cursor position
-	--
-	-- Process:
-	-- 1. Search backwards from cursor to find the relevant hunk header (@@ -old_start,old_count +new_start,new_count @@)
-	-- 2. Extract the starting line number in the new file (new_start)
-	-- 3. Count lines from the hunk header to the cursor position that exist in the new file:
-	--    - Lines starting with '+' (additions) count toward new file
-	--    - Lines starting with ' ' (context) count toward new file
-	--    - Lines starting with '-' (deletions) do NOT count toward new file
-	-- 4. Final line number = new_start + counted_lines - 1
-
+local function identify_line_number(lines, current_line)
+	local line_number = nil
 	local hunk_line = nil
 	local hunk_position = nil
+	local hunk_size = nil
 	for i = current_line, 1, -1 do
 		local line = lines[i]
-		local new_line_match = line:match("^@@ %-%d+,%d+ %+(%d+),%d+ @@")
-		if new_line_match then
-			hunk_line = tonumber(new_line_match)
+		hunk_line, hunk_size = line:match("^@@ %-%d+,%d+ %+(%d+),(%d+) @@")
+		if hunk_line and hunk_size then
+			hunk_line = tonumber(hunk_line)
+			hunk_size = tonumber(hunk_size)
 			hunk_position = i
 			break
 		end
 	end
 
-	if hunk_line and hunk_position then
-		local new_file_line_count = 0
+	if hunk_line and hunk_position and hunk_size then
+		local negatives = 0
 		for i = hunk_position + 1, current_line do
 			local line = lines[i]
-			if line:match("^%+") or line:match("^ ") then
-				new_file_line_count = new_file_line_count + 1
+			if line:match("^%-") then
+				negatives = negatives + 1
 			end
 		end
-		line_number = hunk_line + new_file_line_count - 1
+		local offset = (current_line - hunk_position) - negatives
+		if offset > hunk_size then
+			error("Not in hunk")
+		end
+		line_number = hunk_line + offset - 1
+	end
+	if not line_number then
+		error("Could not determine line number")
+	end
+	return line_number
+end
+
+function M.goto_file_from_diff()
+	local current_line = vim.fn.line(".")
+	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+
+	local ok1, file_path = pcall(identify_file_path, lines, current_line)
+	if not ok1 then
+		vim.notify("Could not determine file (" .. file_path .. ")", vim.log.levels.WARN)
+		return
+	end
+
+	local ok2, line_number = pcall(identify_line_number, lines, current_line)
+	if not ok2 then
+		vim.notify("Could not determine line number (" .. line_number .. ")", vim.log.levels.WARN)
+		return
 	end
 
 	local diff_buf = vim.api.nvim_get_current_buf()
