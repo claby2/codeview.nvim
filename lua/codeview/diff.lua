@@ -31,27 +31,50 @@ function M.open_diff(ref1, ref2)
 		return
 	end
 
-	vim.cmd("new")
-	local buf = vim.api.nvim_get_current_buf()
+	-- Check for existing buffer with the same name
+	local existing_buf = nil
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.api.nvim_buf_is_valid(buf) then
+			local buf_name = vim.api.nvim_buf_get_name(buf)
+			if buf_name:match(vim.pesc(title) .. "$") then
+				existing_buf = buf
+				break
+			end
+		end
+	end
 
+	local buf
+	if existing_buf then
+		-- Reuse existing buffer
+		buf = existing_buf
+		vim.api.nvim_set_current_buf(buf)
+	else
+		-- Create new buffer
+		vim.cmd("enew")
+		buf = vim.api.nvim_get_current_buf()
+		vim.api.nvim_buf_set_name(buf, title)
+	end
+
+	-- Set buffer options
 	vim.api.nvim_buf_set_option(buf, "buftype", "")
 	vim.api.nvim_buf_set_option(buf, "bufhidden", "hide")
 	vim.api.nvim_buf_set_option(buf, "swapfile", false)
 	vim.api.nvim_buf_set_option(buf, "filetype", "diff")
+	vim.api.nvim_buf_set_option(buf, "readonly", false)
 
+	-- Update buffer content
 	local lines = vim.split(output, "\n")
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
 	vim.api.nvim_buf_set_option(buf, "modified", false)
 	vim.api.nvim_buf_set_option(buf, "readonly", true)
 
-	vim.api.nvim_buf_set_name(buf, title)
-
 	-- Store diff parameters for refresh
 	vim.api.nvim_buf_set_var(buf, "codeview_cmd", cmd)
 	vim.api.nvim_buf_set_var(buf, "codeview_title", title)
 	vim.api.nvim_buf_set_var(buf, "codeview_is_diff", true)
 
+	-- Set keymap (safe to call multiple times)
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
 		noremap = true,
 		silent = true,
