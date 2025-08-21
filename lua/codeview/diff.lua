@@ -135,6 +135,7 @@ function M.goto_file_from_diff()
 
 	if line_number and line_number > 0 then
 		vim.fn.cursor(line_number, 1)
+		vim.cmd("normal! zz")
 	end
 
 	vim.api.nvim_buf_set_option(diff_buf, "modified", false)
