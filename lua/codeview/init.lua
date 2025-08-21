@@ -3,16 +3,14 @@ local M = {}
 M.config = {}
 
 -- Helper function to create codeview commands with shared logic
-local function create_codeview_command(name, module_name, func_name, filter_empty_refs)
+local function create_codeview_command(name, module_name, func_name)
 	vim.api.nvim_create_user_command(name, function(args)
 		local module = require(module_name)
 		local refs = vim.split(args.args, "%s+")
 
-		if filter_empty_refs then
-			refs = vim.tbl_filter(function(s)
-				return s ~= ""
-			end, refs)
-		end
+		refs = vim.tbl_filter(function(s)
+			return s ~= ""
+		end, refs)
 
 		if #refs == 0 then
 			module[func_name](nil, nil)
@@ -35,8 +33,8 @@ function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 
 	-- Create commands using the helper function
-	create_codeview_command("CodeViewDiff", "codeview.diff", "open_diff", false)
-	create_codeview_command("CodeViewTable", "codeview.table", "open_table", true)
+	create_codeview_command("CodeViewDiff", "codeview.diff", "open_diff")
+	create_codeview_command("CodeViewTable", "codeview.table", "open_table")
 
 	-- Auto-refresh diff and table buffers when returning to them
 	vim.api.nvim_create_autocmd("BufEnter", {
