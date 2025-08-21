@@ -47,6 +47,11 @@ function M.open_diff(ref1, ref2)
 
 	vim.api.nvim_buf_set_name(buf, title)
 
+	-- Store diff parameters for refresh
+	vim.api.nvim_buf_set_var(buf, "codeview_cmd", cmd)
+	vim.api.nvim_buf_set_var(buf, "codeview_title", title)
+	vim.api.nvim_buf_set_var(buf, "codeview_is_diff", true)
+
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
 		noremap = true,
 		silent = true,
@@ -110,6 +115,39 @@ function M.goto_file_from_diff()
 	end
 
 	vim.api.nvim_buf_set_option(diff_buf, "modified", false)
+end
+
+function M.refresh_diff_buffer(buf)
+	buf = buf or vim.api.nvim_get_current_buf()
+
+	local ok, cmd = pcall(vim.api.nvim_buf_get_var, buf, "codeview_cmd")
+	if not ok then
+		return false
+	end
+
+	local output = vim.fn.system(cmd)
+	if vim.v.shell_error ~= 0 then
+		vim.notify("Git diff refresh failed: " .. output, vim.log.levels.ERROR)
+		return false
+	end
+
+	-- Save cursor position
+	local cursor_pos = vim.fn.getcurpos()
+
+	-- Temporarily disable readonly to update content
+	vim.api.nvim_buf_set_option(buf, "readonly", false)
+
+	local lines = vim.split(output, "\n")
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+
+	-- Restore settings
+	vim.api.nvim_buf_set_option(buf, "modified", false)
+	vim.api.nvim_buf_set_option(buf, "readonly", true)
+
+	-- Restore cursor position
+	vim.fn.setpos(".", cursor_pos)
+
+	return true
 end
 
 return M

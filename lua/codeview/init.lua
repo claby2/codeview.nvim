@@ -37,7 +37,17 @@ function M.setup(opts)
 	local comments = require("codeview.comments")
 	vim.keymap.set("n", "]r", comments.next_comment, { desc = "Next review comment" })
 	vim.keymap.set("n", "[r", comments.prev_comment, { desc = "Previous review comment" })
+
+	-- Auto-refresh diff buffers when returning to them
+	vim.api.nvim_create_autocmd("BufEnter", {
+		callback = function()
+			local buf = vim.api.nvim_get_current_buf()
+			local ok, is_diff = pcall(vim.api.nvim_buf_get_var, buf, "codeview_is_diff")
+			if ok and is_diff then
+				require("codeview.diff").refresh_diff_buffer(buf)
+			end
+		end,
+	})
 end
 
 return M
-
