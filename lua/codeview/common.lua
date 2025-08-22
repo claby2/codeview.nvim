@@ -1,7 +1,7 @@
 local M = {}
 
 -- Generate git command and title based on refs
-function M.generate_git_command_and_title(ref1, ref2, view_type)
+function M.generate_git_command_and_title(ref1, ref2, view_type, filepath)
 	local cmd, title
 	local diff_cmd_base = view_type == "table" and "git diff --numstat" or "git diff"
 	local title_prefix = view_type == "table" and "table:" or "diff:"
@@ -20,6 +20,11 @@ function M.generate_git_command_and_title(ref1, ref2, view_type)
 	else
 		cmd = string.format("%s %s..%s", diff_cmd_base, ref1, ref2)
 		title = string.format("%s %s..%s", title_prefix, ref1, ref2)
+	end
+
+	-- Add filepath filter if specified
+	if filepath then
+		cmd = cmd .. " -- " .. filepath
 	end
 
 	-- Clean up trailing spaces for table commands

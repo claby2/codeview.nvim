@@ -125,17 +125,25 @@ function M.open_table(ref1, ref2)
 	vim.b[buf].codeview_ref2 = ref2
 	vim.b[buf].codeview_header_lines = header_line_count
 
-	-- Set keymap for navigation
+	-- Set keymaps for navigation
 	vim.keymap.set("n", "<CR>", function()
-		M.goto_diff_from_table()
+		M.goto_diff()
 	end, {
 		buffer = buf,
 		silent = true,
 		desc = "Jump to diff from table",
 	})
+
+	vim.keymap.set("n", "<S-CR>", function()
+		M.goto_isolated_diff()
+	end, {
+		buffer = buf,
+		silent = true,
+		desc = "Jump to isolated diff from table",
+	})
 end
 
-function M.goto_diff_from_table()
+local function extract_filepath_from_current_line()
 	local current_line = vim.fn.line(".")
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
@@ -144,21 +152,25 @@ function M.goto_diff_from_table()
 
 	-- Skip header lines
 	if current_line <= header_line_count then
-		return
+		return nil
 	end
 
 	local line = lines[current_line]
 	if not line then
-		return
+		return nil
 	end
 
 	-- Extract filepath from the formatted line
 	local filepath = line:match("^%s*%+%d+%s+%-%d+%s+(.+)$")
 	if not filepath then
 		vim.notify("Could not determine file from current line", vim.log.levels.WARN)
-		return
+		return nil
 	end
 
+	return filepath
+end
+
+local function navigate_to_diff(filepath)
 	-- Get the table buffer's refs for creating diff
 	local table_buf = vim.api.nvim_get_current_buf()
 	local ref1 = vim.b[table_buf].codeview_ref1
@@ -167,11 +179,15 @@ function M.goto_diff_from_table()
 	-- Store current position for return navigation
 	vim.cmd("normal! m'")
 
-	-- Open diff view with the same refs as the table
+	-- Open diff view (isolated or full based on parameter)
 	local diff = require("codeview.diff")
-	diff.open_diff(ref1, ref2)
+	diff.open_diff(ref1, ref2, filepath)
+end
 
-	-- Navigate to the specific file in the diff
+function M.goto_diff()
+	local filepath = extract_filepath_from_current_line()
+	navigate_to_diff(nil) -- avoid passing filepath
+	-- Navigate to the specific file in the full diff
 	local diff_buf = vim.api.nvim_get_current_buf()
 	local diff_lines = vim.api.nvim_buf_get_lines(diff_buf, 0, -1, false)
 
@@ -183,6 +199,12 @@ function M.goto_diff_from_table()
 			break
 		end
 	end
+end
+
+function M.goto_isolated_diff()
+	local filepath = extract_filepath_from_current_line()
+	navigate_to_diff(filepath)
+	vim.cmd("normal! gg")
 end
 
 function M.refresh_table_buffer(buf)

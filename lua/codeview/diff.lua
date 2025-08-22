@@ -1,16 +1,19 @@
 local M = {}
 local common = require("codeview.common")
 
-function M.open_diff(ref1, ref2)
-	local cmd, title = common.generate_git_command_and_title(ref1, ref2, "diff")
+function M.open_diff(ref1, ref2, filepath)
+	local cmd, title = common.generate_git_command_and_title(ref1, ref2, "diff", filepath)
 
 	local output = common.execute_git_command(cmd)
 	if not output then
 		return
 	end
 
-	-- Include untracked files if appropriate
-	if common.should_include_untracked(ref1, ref2) then
+	if filepath and output == "" then
+		-- Got no output, but requested filepath...
+		output = common.generate_untracked_diff({ filepath })
+	elseif not filepath and common.should_include_untracked(ref1, ref2) then
+		-- Include untracked files if appropriate
 		local untracked_files = common.get_untracked_files()
 		if #untracked_files > 0 then
 			local untracked_diff = common.generate_untracked_diff(untracked_files)
@@ -53,6 +56,7 @@ function M.open_diff(ref1, ref2)
 	vim.b[buf].codeview_is_diff = true
 	vim.b[buf].codeview_ref1 = ref1
 	vim.b[buf].codeview_ref2 = ref2
+	vim.b[buf].codeview_isolated_filepath = filepath
 
 	-- Set keymap (safe to call multiple times)
 	vim.keymap.set("n", "<CR>", function()
@@ -158,12 +162,13 @@ function M.refresh_diff_buffer(buf)
 	-- Save cursor position
 	local cursor_pos = vim.fn.getcurpos()
 
-	-- Get refs for re-calling open_diff
+	-- Get refs and isolated state for re-calling open_diff
 	local ref1 = vim.b[buf].codeview_ref1
 	local ref2 = vim.b[buf].codeview_ref2
+	local isolated_filepath = vim.b[buf].codeview_isolated_filepath
 
-	-- Re-generate the diff content (this will include untracked files automatically)
-	M.open_diff(ref1, ref2)
+	-- Re-generate the diff content with proper isolated state
+	M.open_diff(ref1, ref2, isolated_filepath)
 
 	-- Restore cursor position
 	vim.fn.setpos(".", cursor_pos)
