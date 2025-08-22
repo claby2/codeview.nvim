@@ -45,11 +45,11 @@ function M.open_diff(ref1, ref2)
 	vim.api.nvim_buf_set_option(buf, "readonly", true)
 
 	-- Store diff parameters for refresh
-	vim.api.nvim_buf_set_var(buf, "codeview_cmd", cmd)
-	vim.api.nvim_buf_set_var(buf, "codeview_title", title)
-	vim.api.nvim_buf_set_var(buf, "codeview_is_diff", true)
-	vim.api.nvim_buf_set_var(buf, "codeview_ref1", ref1)
-	vim.api.nvim_buf_set_var(buf, "codeview_ref2", ref2)
+	vim.b[buf].codeview_cmd = cmd
+	vim.b[buf].codeview_title = title
+	vim.b[buf].codeview_is_diff = true
+	vim.b[buf].codeview_ref1 = ref1
+	vim.b[buf].codeview_ref2 = ref2
 
 	-- Set keymap (safe to call multiple times)
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
@@ -118,20 +118,28 @@ function M.goto_file_from_diff()
 
 	local ok1, file_path = pcall(identify_file_path, lines, current_line)
 	if not ok1 then
-		vim.notify("Could not determine file (" .. file_path .. ")", vim.log.levels.WARN)
+		vim.notify(
+			"Could not determine file from current line: " .. (file_path or "unknown error"),
+			vim.log.levels.WARN
+		)
 		return
 	end
 
 	local ok2, line_number = pcall(identify_line_number, lines, current_line)
 	if not ok2 then
-		vim.notify("Could not determine line number (" .. line_number .. ")", vim.log.levels.WARN)
+		vim.notify("Could not determine line number: " .. (line_number or "not in a hunk"), vim.log.levels.WARN)
 		return
 	end
 
 	local diff_buf = vim.api.nvim_get_current_buf()
 
 	vim.cmd("normal! m'")
-	vim.cmd("edit " .. file_path)
+
+	local ok, err = pcall(vim.cmd, "edit " .. vim.fn.fnameescape(file_path))
+	if not ok then
+		vim.notify("Failed to open file: " .. file_path .. " (" .. err .. ")", vim.log.levels.ERROR)
+		return
+	end
 
 	if line_number and line_number > 0 then
 		vim.fn.cursor(line_number, 1)
@@ -147,16 +155,9 @@ function M.refresh_diff_buffer(buf)
 	-- Save cursor position
 	local cursor_pos = vim.fn.getcurpos()
 
-	-- Get refs for re-calling open_table
-	local ok1, ref1 = pcall(vim.api.nvim_buf_get_var, buf, "codeview_ref1")
-	local ok2, ref2 = pcall(vim.api.nvim_buf_get_var, buf, "codeview_ref2")
-
-	if not ok1 then
-		ref1 = nil
-	end
-	if not ok2 then
-		ref2 = nil
-	end
+	-- Get refs for re-calling open_diff
+	local ref1 = vim.b[buf].codeview_ref1
+	local ref2 = vim.b[buf].codeview_ref2
 
 	-- Re-generate the diff content (this will include untracked files automatically)
 	M.open_diff(ref1, ref2)

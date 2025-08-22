@@ -5,6 +5,13 @@ M.config = {}
 -- Helper function to create codeview commands with shared logic
 local function create_codeview_command(name, module_name, func_name)
 	vim.api.nvim_create_user_command(name, function(args)
+		local common = require("codeview.common")
+
+		-- Validate git is available
+		if not common.validate_git() then
+			return
+		end
+
 		local module = require(module_name)
 		local refs = vim.split(args.args, "%s+")
 
@@ -40,12 +47,12 @@ function M.setup(opts)
 	vim.api.nvim_create_autocmd("BufEnter", {
 		callback = function()
 			local buf = vim.api.nvim_get_current_buf()
-			local ok_diff, is_diff = pcall(vim.api.nvim_buf_get_var, buf, "codeview_is_diff")
-			local ok_table, is_table = pcall(vim.api.nvim_buf_get_var, buf, "codeview_is_table")
+			local is_diff = vim.b[buf].codeview_is_diff
+			local is_table = vim.b[buf].codeview_is_table
 
-			if ok_diff and is_diff then
+			if is_diff then
 				require("codeview.diff").refresh_diff_buffer(buf)
-			elseif ok_table and is_table then
+			elseif is_table then
 				require("codeview.table").refresh_table_buffer(buf)
 			end
 		end,

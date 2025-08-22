@@ -115,12 +115,12 @@ function M.open_table(ref1, ref2)
 	vim.api.nvim_buf_set_option(buf, "readonly", true)
 
 	-- Store table parameters for refresh and navigation
-	vim.api.nvim_buf_set_var(buf, "codeview_cmd", cmd)
-	vim.api.nvim_buf_set_var(buf, "codeview_title", title)
-	vim.api.nvim_buf_set_var(buf, "codeview_is_table", true)
-	vim.api.nvim_buf_set_var(buf, "codeview_ref1", ref1)
-	vim.api.nvim_buf_set_var(buf, "codeview_ref2", ref2)
-	vim.api.nvim_buf_set_var(buf, "codeview_header_lines", header_line_count)
+	vim.b[buf].codeview_cmd = cmd
+	vim.b[buf].codeview_title = title
+	vim.b[buf].codeview_is_table = true
+	vim.b[buf].codeview_ref1 = ref1
+	vim.b[buf].codeview_ref2 = ref2
+	vim.b[buf].codeview_header_lines = header_line_count
 
 	-- Set keymap for navigation
 	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
@@ -137,10 +137,7 @@ function M.goto_diff_from_table()
 	local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
 	-- Get the number of header lines from buffer variable
-	local ok, header_line_count = pcall(vim.api.nvim_buf_get_var, 0, "codeview_header_lines")
-	if not ok then
-		header_line_count = 3 -- fallback to default
-	end
+	local header_line_count = vim.b[0].codeview_header_lines or 3
 
 	-- Skip header lines
 	if current_line <= header_line_count then
@@ -161,15 +158,8 @@ function M.goto_diff_from_table()
 
 	-- Get the table buffer's refs for creating diff
 	local table_buf = vim.api.nvim_get_current_buf()
-	local ok1, ref1 = pcall(vim.api.nvim_buf_get_var, table_buf, "codeview_ref1")
-	local ok2, ref2 = pcall(vim.api.nvim_buf_get_var, table_buf, "codeview_ref2")
-
-	if not ok1 then
-		ref1 = nil
-	end
-	if not ok2 then
-		ref2 = nil
-	end
+	local ref1 = vim.b[table_buf].codeview_ref1
+	local ref2 = vim.b[table_buf].codeview_ref2
 
 	-- Store current position for return navigation
 	vim.cmd("normal! m'")
@@ -199,15 +189,8 @@ function M.refresh_table_buffer(buf)
 	local cursor_pos = vim.fn.getcurpos()
 
 	-- Get refs for re-calling open_table
-	local ok1, ref1 = pcall(vim.api.nvim_buf_get_var, buf, "codeview_ref1")
-	local ok2, ref2 = pcall(vim.api.nvim_buf_get_var, buf, "codeview_ref2")
-
-	if not ok1 then
-		ref1 = nil
-	end
-	if not ok2 then
-		ref2 = nil
-	end
+	local ref1 = vim.b[buf].codeview_ref1
+	local ref2 = vim.b[buf].codeview_ref2
 
 	-- Re-generate the table content (this will include untracked files automatically)
 	M.open_table(ref1, ref2)

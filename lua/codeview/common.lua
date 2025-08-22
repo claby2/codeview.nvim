@@ -30,12 +30,22 @@ function M.generate_git_command_and_title(ref1, ref2, view_type)
 	return cmd, title
 end
 
+-- Validate git is available
+function M.validate_git()
+	local result = vim.fn.executable("git")
+	if result == 0 then
+		vim.notify("Git command not found. Please install git.", vim.log.levels.ERROR)
+		return false
+	end
+	return true
+end
+
 -- Execute git command with error handling
 function M.execute_git_command(cmd)
 	local output = vim.fn.system(cmd)
 
 	if vim.v.shell_error ~= 0 then
-		vim.notify("Git diff failed: " .. output, vim.log.levels.ERROR)
+		vim.notify("Git command failed: " .. output, vim.log.levels.ERROR)
 		return nil
 	end
 
