@@ -92,6 +92,39 @@ function M.set_common_buffer_options(buf)
 	vim.api.nvim_buf_set_option(buf, "readonly", false)
 end
 
+-- Set up buffer-local refresh autocmd
+function M.setup_buffer_refresh_autocmd(buf, view_type)
+	local group_name = "codeview_refresh_" .. buf
+
+	-- Clear any existing autocmds for this buffer to avoid duplicates
+	pcall(vim.api.nvim_del_augroup_by_name, group_name)
+
+	-- Create buffer-specific autocommand group
+	local group = vim.api.nvim_create_augroup(group_name, { clear = true })
+
+	-- Set up refresh autocmd for this specific buffer
+	vim.api.nvim_create_autocmd("BufEnter", {
+		group = group,
+		buffer = buf,
+		callback = function()
+			if view_type == "diff" then
+				require("codeview.diff").refresh_diff_buffer(buf)
+			elseif view_type == "table" then
+				require("codeview.table").refresh_table_buffer(buf)
+			end
+		end,
+	})
+
+	-- Clean up autocmd when buffer is deleted
+	vim.api.nvim_create_autocmd("BufDelete", {
+		group = group,
+		buffer = buf,
+		callback = function()
+			pcall(vim.api.nvim_del_augroup_by_name, group_name)
+		end,
+	})
+end
+
 -- Check if untracked files should be included based on refs
 function M.should_include_untracked(ref1, ref2)
 	-- Include untracked files only when comparing against working tree

@@ -37,6 +37,9 @@ function M.open_diff(ref1, ref2)
 	vim.api.nvim_buf_set_option(buf, "buftype", "")
 	vim.api.nvim_buf_set_option(buf, "filetype", "diff")
 
+	-- Set up buffer-local refresh autocmd
+	common.setup_buffer_refresh_autocmd(buf, "diff")
+
 	-- Update buffer content
 	local lines = vim.split(output, "\n")
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)

@@ -42,21 +42,6 @@ function M.setup(opts)
 	-- Create commands using the helper function
 	create_codeview_command("CodeViewDiff", "codeview.diff", "open_diff")
 	create_codeview_command("CodeViewTable", "codeview.table", "open_table")
-
-	-- Auto-refresh diff and table buffers when returning to them
-	vim.api.nvim_create_autocmd("BufEnter", {
-		callback = function()
-			local buf = vim.api.nvim_get_current_buf()
-			local is_diff = vim.b[buf].codeview_is_diff
-			local is_table = vim.b[buf].codeview_is_table
-
-			if is_diff then
-				require("codeview.diff").refresh_diff_buffer(buf)
-			elseif is_table then
-				require("codeview.table").refresh_table_buffer(buf)
-			end
-		end,
-	})
 end
 
 return M

@@ -62,6 +62,9 @@ function M.open_table(ref1, ref2)
 	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
 	vim.api.nvim_buf_set_option(buf, "filetype", "codeview-table")
 
+	-- Set up buffer-local refresh autocmd
+	common.setup_buffer_refresh_autocmd(buf, "table")
+
 	-- Build table content
 	local lines = {}
 	table.insert(lines, string.format("Files changed: %d", total_files))
