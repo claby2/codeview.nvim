@@ -59,8 +59,8 @@ function M.open_table(ref1, ref2)
 
 	-- Set buffer options
 	common.set_common_buffer_options(buf)
-	vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
-	vim.api.nvim_buf_set_option(buf, "filetype", "codeview-table")
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].filetype = "codeview-table"
 
 	-- Set up buffer-local refresh autocmd
 	common.setup_buffer_refresh_autocmd(buf, "table")
@@ -114,8 +114,8 @@ function M.open_table(ref1, ref2)
 	-- Update buffer content
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-	vim.api.nvim_buf_set_option(buf, "modified", false)
-	vim.api.nvim_buf_set_option(buf, "readonly", true)
+	vim.bo[buf].modified = false
+	vim.bo[buf].readonly = true
 
 	-- Store table parameters for refresh and navigation
 	vim.b[buf].codeview_cmd = cmd
@@ -126,12 +126,12 @@ function M.open_table(ref1, ref2)
 	vim.b[buf].codeview_header_lines = header_line_count
 
 	-- Set keymap for navigation
-	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
-		noremap = true,
+	vim.keymap.set("n", "<CR>", function()
+		M.goto_diff_from_table()
+	end, {
+		buffer = buf,
 		silent = true,
-		callback = function()
-			M.goto_diff_from_table()
-		end,
+		desc = "Jump to diff from table",
 	})
 end
 

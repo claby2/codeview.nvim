@@ -34,8 +34,8 @@ function M.open_diff(ref1, ref2)
 
 	-- Set buffer options
 	common.set_common_buffer_options(buf)
-	vim.api.nvim_buf_set_option(buf, "buftype", "")
-	vim.api.nvim_buf_set_option(buf, "filetype", "diff")
+	vim.bo[buf].buftype = ""
+	vim.bo[buf].filetype = "diff"
 
 	-- Set up buffer-local refresh autocmd
 	common.setup_buffer_refresh_autocmd(buf, "diff")
@@ -44,8 +44,8 @@ function M.open_diff(ref1, ref2)
 	local lines = vim.split(output, "\n")
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 
-	vim.api.nvim_buf_set_option(buf, "modified", false)
-	vim.api.nvim_buf_set_option(buf, "readonly", true)
+	vim.bo[buf].modified = false
+	vim.bo[buf].readonly = true
 
 	-- Store diff parameters for refresh
 	vim.b[buf].codeview_cmd = cmd
@@ -55,12 +55,12 @@ function M.open_diff(ref1, ref2)
 	vim.b[buf].codeview_ref2 = ref2
 
 	-- Set keymap (safe to call multiple times)
-	vim.api.nvim_buf_set_keymap(buf, "n", "<CR>", "", {
-		noremap = true,
+	vim.keymap.set("n", "<CR>", function()
+		M.goto_file_from_diff()
+	end, {
+		buffer = buf,
 		silent = true,
-		callback = function()
-			M.goto_file_from_diff()
-		end,
+		desc = "Jump to file from diff",
 	})
 end
 
@@ -149,7 +149,7 @@ function M.goto_file_from_diff()
 		vim.cmd("normal! zz")
 	end
 
-	vim.api.nvim_buf_set_option(diff_buf, "modified", false)
+	vim.bo[diff_buf].modified = false
 end
 
 function M.refresh_diff_buffer(buf)

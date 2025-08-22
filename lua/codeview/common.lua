@@ -87,9 +87,9 @@ end
 
 -- Set common buffer options
 function M.set_common_buffer_options(buf)
-	vim.api.nvim_buf_set_option(buf, "bufhidden", "hide")
-	vim.api.nvim_buf_set_option(buf, "swapfile", false)
-	vim.api.nvim_buf_set_option(buf, "readonly", false)
+	vim.bo[buf].bufhidden = "hide"
+	vim.bo[buf].swapfile = false
+	vim.bo[buf].readonly = false
 end
 
 -- Set up buffer-local refresh autocmd
